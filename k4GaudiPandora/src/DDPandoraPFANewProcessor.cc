@@ -60,52 +60,6 @@ double getFieldFromCompact() {
   return magneticFieldVector[2] / dd4hep::tesla; // z component at (0,0,0)
 }
 
-// Not needed anymore; to be removed
-//  double getCoilOuterR(){
-//
-//    try{
-//      dd4hep::Detector & mainDetector = dd4hep::Detector::getInstance();
-//      const std::vector< dd4hep::DetElement>& theDetectors = dd4hep::DetectorSelector(mainDetector).detectors(
-//      dd4hep::DetType::COIL ) ;
-//      //access the detelement and create a shape from the envelope since only minimal info needed
-//      dd4hep::Tube coilTube = dd4hep::Tube( theDetectors.at(0).volume().solid() )  ;
-//      return coilTube->GetRmax()/ dd4hep::mm;
-//    } catch ( std::exception & e ) {
-//
-//            streamlog_out(ERROR)<< "BIG WARNING! CANNOT GET EXTENSION FOR COIL: "<<e.what()<<" MAKE SURE YOU CHANGE
-//            THIS!"<< std::endl;
-//
-//    }
-//
-//    return 0;
-//  }
-
-/// Not needed anymore. To be removed
-// DD4hep::DDRec::LayeredCalorimeterData * getExtension(std::string detectorName){
-//
-//
-//   DD4hep::DDRec::LayeredCalorimeterData * theExtension = 0;
-//
-//   try {
-//     dd4hep::Detector & mainDetector = dd4hep::Detector::getInstance();
-//     const dd4hep::DetElement & theDetector = mainDetector.detector(detectorName);
-//     theExtension = theDetector.extension<DD4hep::DDRec::LayeredCalorimeterData>();
-//     //     std::cout<< "DEBUG: in getExtension(\""<<detectorName<<"\"): size of layers:
-//     "<<theExtension->layers.size()<<" positions not shown. "<<std::endl;
-//
-//     //     for(int i=0; i< theExtension->layers.size(); i++){
-//     //       std::cout<<theExtension->layers[i].distance/dd4hep::mm<<" ";
-//     //     }
-//     //     std::cout<<std::endl;
-//   } catch ( ... ){
-//
-//     streamlog_out(ERROR) << "BIG WARNING! EXTENSION DOES NOT EXIST FOR " << detectorName<<". MAKE SURE YOU CHANGE
-//     THIS!"<< std::endl;
-//   }
-//
-//   return theExtension;
-// }
-
 dd4hep::rec::LayeredCalorimeterData* getExtension(unsigned int includeFlag, unsigned int excludeFlag = 0) {
   dd4hep::rec::LayeredCalorimeterData* theExtension = 0;
 
@@ -161,7 +115,7 @@ DDPandoraPFANewProcessor::DDPandoraPFANewProcessor() : Processor("DDPandoraPFANe
 void DDPandoraPFANewProcessor::init() {
   printParameters();
   try {
-    streamlog_out(MESSAGE) << "DDPandoraPFANewProcessor - Init" << std::endl;
+    std::cout << "DDPandoraPFANewProcessor - Init" << std::endl;
     this->FinaliseSteeringParameters();
 
     m_pPandora = new pandora::Pandora();
@@ -203,7 +157,7 @@ void DDPandoraPFANewProcessor::processRunHeader(LCRunHeader* /*pLCRunHeader*/) {
 
 void DDPandoraPFANewProcessor::processEvent(LCEvent* pLCEvent) {
   try {
-    streamlog_out(DEBUG) << "DDPandoraPFANewProcessor - Run " << std::endl;
+    std::cout << "DDPandoraPFANewProcessor - Run " << std::endl;
     (void)m_pandoraToLCEventMap.insert(PandoraToLCEventMap::value_type(m_pPandora, pLCEvent));
 
     PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, m_pDDMCParticleCreator->CreateMCParticles(pLCEvent));
@@ -253,7 +207,7 @@ void DDPandoraPFANewProcessor::end() {
   delete m_pDDMCParticleCreator;
   delete m_pDDPfoCreator;
 
-  streamlog_out(MESSAGE) << "DDPandoraPFANewProcessor - End" << std::endl;
+  std::cout << "DDPandoraPFANewProcessor - End" << std::endl;
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------

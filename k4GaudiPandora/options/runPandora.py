@@ -16,7 +16,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-from Gaudi.Configuration import INFO
+from Gaudi.Configuration import WARNING
 from k4FWCore import ApplicationMgr, IOSvc
 from Configurables import EventDataSvc
 from Configurables import DDPandoraPFANewAlgorithm
@@ -37,7 +37,7 @@ geoservice = GeoSvc("GeoSvc")
 geoservice.detectors = [
     os.environ["K4GEO"] + "/FCCee/CLD/compact/CLD_o2_v07/CLD_o2_v07.xml"
 ]
-geoservice.OutputLevel = INFO
+geoservice.OutputLevel = WARNING
 geoservice.EnableGeant4Geo = False
 
 params = {
@@ -155,5 +155,5 @@ ApplicationMgr(
     EvtSel="NONE",
     EvtMax=1,
     ExtSvc=[EventDataSvc("EventDataSvc")],
-    OutputLevel=INFO,
+    OutputLevel=WARNING,
 )
