@@ -46,7 +46,7 @@ private:
   pandora::StatusCode Run();
   pandora::StatusCode ReadSettings(const pandora::TiXmlHandle xmlHandle);
 
-  typedef std::map<const void*, const pandora::CaloHit*> ParentAddressToCaloHitMap;
+  typedef std::map<uint64_t, const pandora::CaloHit*> ExternalToPandoraCaloHitMap;
 
   std::string m_externalClusterCollectionNames = "";
   bool m_flagClustersAsPhotons = false;

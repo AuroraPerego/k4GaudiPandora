@@ -75,12 +75,14 @@ pandora::StatusCode DDExternalClusteringAlgorithm::Run() {
       return pandora::STATUS_CODE_SUCCESS;
 
     // Populate pandora parent address to calo hit map
-    ParentAddressToCaloHitMap parentAddressToCaloHitMap;
+    ExternalToPandoraCaloHitMap caloHitMap;
 
     for (pandora::CaloHitList::const_iterator hitIter = pCaloHitList->begin(), hitIterEnd = pCaloHitList->end();
          hitIter != hitIterEnd; ++hitIter) {
       const pandora::CaloHit* const pCaloHit = *hitIter;
-      parentAddressToCaloHitMap.insert(ParentAddressToCaloHitMap::value_type(pCaloHit->GetParentAddress(), pCaloHit));
+      const edm4hep::CalorimeterHit* edmCaloHit =
+          static_cast<const edm4hep::CalorimeterHit*>(pCaloHit->GetParentAddress());
+      caloHitMap.emplace(edmCaloHit->getCellID(), pCaloHit);
     }
 
     // Recreate external clusters within the pandora framework
