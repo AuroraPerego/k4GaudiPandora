@@ -33,6 +33,7 @@
 
 #include "DDTrackCreatorCLIC.h"
 #include "DDTrackCreatorILD.h"
+#include "DDExternalClusteringAlgorithm.h"
 
 #include <Api/PandoraApi.h>
 #include <LCContent.h>
@@ -49,6 +50,8 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+
+#include <Gaudi/Algorithm.h>
 
 double getFieldFromCompact() {
   dd4hep::Detector& mainDetector = dd4hep::Detector::getInstance();
@@ -97,6 +100,8 @@ dd4hep::rec::LayeredCalorimeterData* getExtension(unsigned int includeFlag, unsi
 
   return theExtension;
 }
+
+DDPandoraPFANewAlgorithm::PandoraToLCEventMap DDPandoraPFANewAlgorithm::m_pandoraToLCEventMap;
 
 DDPandoraPFANewAlgorithm::DDPandoraPFANewAlgorithm(const std::string& name, ISvcLocator* svcLoc)
     : MultiTransformer(name, svcLoc,
@@ -158,6 +163,15 @@ StatusCode DDPandoraPFANewAlgorithm::initialize() {
   return StatusCode::SUCCESS;
 }
 
+const SmartIF<IDataProviderSvc> DDPandoraPFANewAlgorithm::GetCurrentEvent(const pandora::Pandora* const pPandora) {
+  auto iter = m_pandoraToLCEventMap.find(pPandora);
+
+  if (m_pandoraToLCEventMap.end() == iter)
+    throw pandora::StatusCodeException(pandora::STATUS_CODE_NOT_FOUND);
+
+  return iter->second;
+}
+
 std::tuple<edm4hep::ClusterCollection, edm4hep::ReconstructedParticleCollection, edm4hep::VertexCollection>
 DDPandoraPFANewAlgorithm::operator()(const std::vector<const edm4hep::MCParticleCollection*>& MCParticleCollections,
                                      const std::vector<const edm4hep::VertexCollection*>& kinkCollections,
@@ -174,6 +188,8 @@ DDPandoraPFANewAlgorithm::operator()(const std::vector<const edm4hep::MCParticle
                                      const std::vector<const edm4hep::CaloHitSimCaloHitLinkCollection*>&) const {
   try {
 
+    const auto event = Gaudi::Algorithm::eventSvc();
+    m_pandoraToLCEventMap.emplace(&m_pPandora, event);
     std::vector<edm4hep::MCParticle> mcParticlesVector;
     for (const auto& mcParticleCollection : MCParticleCollections) {
       mcParticlesVector.insert(mcParticlesVector.end(), mcParticleCollection->begin(), mcParticleCollection->end());
@@ -294,6 +310,9 @@ pandora::StatusCode DDPandoraPFANewAlgorithm::registerUserComponents() const {
                                                              m_settings.m_muonEndCapBField))
   }
 
+  PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=,
+                          PandoraApi::RegisterAlgorithmFactory(m_pPandora, "ExternalClustering",
+                                                               new DDExternalClusteringAlgorithm::Factory));
   PANDORA_RETURN_RESULT_IF(
       pandora::STATUS_CODE_SUCCESS, !=,
       LCContent::RegisterNonLinearityEnergyCorrection(m_pPandora, "ECALClusterCorrection", pandora::ELECTROMAGNETIC,
@@ -479,6 +498,13 @@ void DDPandoraPFANewAlgorithm::finaliseSteeringParameters() {
 void DDPandoraPFANewAlgorithm::reset() const {
   if (m_pTrackCreator)
     m_pTrackCreator->Reset();
+
+  auto iter = m_pandoraToLCEventMap.find(&m_pPandora);
+
+  if (m_pandoraToLCEventMap.end() == iter)
+    throw pandora::StatusCodeException(pandora::STATUS_CODE_FAILURE);
+
+  m_pandoraToLCEventMap.erase(iter);
 }
 
 DDPandoraPFANewAlgorithm::Settings::Settings()

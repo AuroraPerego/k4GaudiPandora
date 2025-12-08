@@ -104,6 +104,8 @@ public:
   StatusCode initialize() override;
   StatusCode finalize() override;
 
+  static const SmartIF<IDataProviderSvc> GetCurrentEvent(const pandora::Pandora* const pPandora);
+
   /**
    *  @brief operator, the workhorse of the algorithm
    *
@@ -157,6 +159,9 @@ private:
    *  @brief  Reset the pandora pfa new processor
    */
   void reset() const;
+
+  typedef std::map<const pandora::Pandora*, const SmartIF<IDataProviderSvc>> PandoraToLCEventMap;
+  static PandoraToLCEventMap m_pandoraToLCEventMap; ///< The pandora to lc event map
 
   pandora::Pandora m_pPandora;                                 ///< Pandora instance
   std::unique_ptr<DDCaloHitCreator> m_caloHitCreator;          ///< The calo hit creator

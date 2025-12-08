@@ -27,33 +27,20 @@
 #ifndef DDEXTERNALCLUSTERINGALGORITHM_H
 #define DDEXTERNALCLUSTERINGALGORITHM_H 1
 
+#include "Objects/CaloHit.h"
 #include "Pandora/Algorithm.h"
 
 #include <map>
 
-namespace pandora {
-class CaloHit;
-}
-
-//------------------------------------------------------------------------------------------------------------------------------------------
-
-/**
- *  @brief  DDExternalClusteringAlgorithm class
- */
 class DDExternalClusteringAlgorithm : public pandora::Algorithm {
 public:
-  /**
-   *  @brief  Factory class for instantiating algorithm
-   */
   class Factory : public pandora::AlgorithmFactory {
   public:
     pandora::Algorithm* CreateAlgorithm() const;
   };
 
-  /**
-   *  @brief  Default constructor
-   */
   DDExternalClusteringAlgorithm();
+  ~DDExternalClusteringAlgorithm() = default;
 
 private:
   pandora::StatusCode Run();
@@ -61,11 +48,9 @@ private:
 
   typedef std::map<const void*, const pandora::CaloHit*> ParentAddressToCaloHitMap;
 
-  std::string m_externalClusterCollectionName = ""; ///< The collection name for the external clusters
-  bool m_flagClustersAsPhotons = true;              ///< Whether to automatically flag new clusters as fixed photons
+  std::string m_externalClusterCollectionNames = "";
+  bool m_flagClustersAsPhotons = false;
 };
-
-//------------------------------------------------------------------------------------------------------------------------------------------
 
 inline pandora::Algorithm* DDExternalClusteringAlgorithm::Factory::CreateAlgorithm() const {
   return new DDExternalClusteringAlgorithm();
