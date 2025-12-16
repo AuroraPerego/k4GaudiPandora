@@ -48,7 +48,8 @@ private:
 
   typedef std::map<uint64_t, const pandora::CaloHit*> ExternalToPandoraCaloHitMap;
 
-  std::string m_externalClusterCollectionNames = "";
+  std::string m_externalECALClusterCollectionName = "";
+  std::string m_externalHCALClusterCollectionName = "";
   bool m_flagClustersAsPhotons = false;
 };
 

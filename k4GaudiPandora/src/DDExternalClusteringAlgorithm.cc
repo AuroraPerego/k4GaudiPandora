@@ -38,6 +38,10 @@
 
 #include <Gaudi/Algorithm.h>
 
+#include <sstream>
+#include <string>
+#include <vector>
+
 DDExternalClusteringAlgorithm::DDExternalClusteringAlgorithm() : m_flagClustersAsPhotons(false) {}
 
 pandora::StatusCode DDExternalClusteringAlgorithm::Run() {
@@ -46,32 +50,6 @@ pandora::StatusCode DDExternalClusteringAlgorithm::Run() {
     PANDORA_RETURN_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraContentApi::GetCurrentList(*this, pCaloHitList));
 
     if (pCaloHitList->empty())
-      return pandora::STATUS_CODE_SUCCESS;
-
-    const auto& gEvent = DDPandoraPFANewAlgorithm::GetCurrentEvent(&(this->GetPandora()));
-
-    DataObject* rawObj = nullptr;
-    StatusCode sc = gEvent.get()->retrieveObject("/Event/" + m_externalClusterCollectionNames, rawObj);
-    if (sc.isFailure() || rawObj == nullptr) {
-      throw std::runtime_error("Cannot retrieve external cluster collection");
-    }
-
-    auto anyWrapper = dynamic_cast<AnyDataWrapper<std::unique_ptr<podio::CollectionBase>>*>(rawObj);
-    if (!anyWrapper) {
-      throw std::runtime_error("Failed to cast to AnyDataWrapper");
-    }
-
-    // get the underlying CollectionBase*
-    auto collBasePtr = anyWrapper->getData().get(); // CollectionBase*
-
-    // now cast to your concrete collection type
-    auto pExternalClusterCollection = dynamic_cast<edm4hep::ClusterCollection*>(collBasePtr);
-    if (!pExternalClusterCollection) {
-      throw std::runtime_error("Failed to cast CollectionBase to ClusterCollection");
-    }
-    const unsigned int nExternalClusters(pExternalClusterCollection->size());
-
-    if (0 == nExternalClusters)
       return pandora::STATUS_CODE_SUCCESS;
 
     // Populate pandora parent address to calo hit map
@@ -85,6 +63,8 @@ pandora::StatusCode DDExternalClusteringAlgorithm::Run() {
       caloHitMap.emplace(edmCaloHit->getCellID(), pCaloHit);
     }
 
+    const auto& gEvent = DDPandoraPFANewAlgorithm::GetCurrentEvent(&(this->GetPandora()));
+
     // Recreate external clusters within the pandora framework
     const pandora::ClusterList* pClusterList = nullptr;
     std::string clusterListNameTmp = "ExternalClustersTmp";
@@ -94,35 +74,66 @@ pandora::StatusCode DDExternalClusteringAlgorithm::Run() {
         pandora::STATUS_CODE_SUCCESS, !=,
         PandoraContentApi::CreateTemporaryListAndSetCurrent(*this, pClusterList, clusterListNameTmp));
 
-    for (const edm4hep::Cluster& externalCluster : *pExternalClusterCollection) {
+    // obtain external clusters
+    for (const auto& collectionName :
+         std::array<std::string, 2>{m_externalECALClusterCollectionName, m_externalHCALClusterCollectionName}) {
+      std::cout << "retreiving " << collectionName << ", there are ";
 
-      const auto& calorimeterHitVec = externalCluster.getHits();
-
-      pandora::CaloHitList pandoraHitList;
-
-      for (const auto& edmHit : calorimeterHitVec) {
-        auto itr = caloHitMap.find(edmHit.getCellID());
-        if (itr == caloHitMap.end())
-          continue;
-        pandoraHitList.emplace_back(itr->second);
+      DataObject* rawObj = nullptr;
+      StatusCode sc = gEvent.get()->retrieveObject("/Event/" + collectionName, rawObj);
+      if (sc.isFailure() || rawObj == nullptr) {
+        throw std::runtime_error("Cannot retrieve external cluster collection");
       }
 
-      if (pandoraHitList.empty())
+      auto anyWrapper = dynamic_cast<AnyDataWrapper<std::unique_ptr<podio::CollectionBase>>*>(rawObj);
+      if (!anyWrapper) {
+        throw std::runtime_error("Failed to cast to AnyDataWrapper");
+      }
+
+      // get the underlying CollectionBase*
+      auto collBasePtr = anyWrapper->getData().get();
+
+      // now cast to your concrete collection type
+      auto pExternalClusterCollection = dynamic_cast<edm4hep::ClusterCollection*>(collBasePtr);
+      if (!pExternalClusterCollection) {
+        throw std::runtime_error("Failed to cast CollectionBase to ClusterCollection");
+      }
+      const unsigned int nExternalClusters(pExternalClusterCollection->size());
+
+      std::cout << nExternalClusters << " clusters\n";
+      if (0 == nExternalClusters)
         continue;
 
-      object_creation::ClusterParameters clusterParameters;
-      clusterParameters.m_caloHitList = pandoraHitList;
+      for (const edm4hep::Cluster& externalCluster : *pExternalClusterCollection) {
 
-      const pandora::Cluster* pPandoraCluster = nullptr;
+        const auto& calorimeterHitVec = externalCluster.getHits();
 
-      PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=,
-                              PandoraContentApi::Cluster::Create(*this, clusterParameters, pPandoraCluster));
+        pandora::CaloHitList pandoraHitList;
 
-      if (m_flagClustersAsPhotons) {
-        PandoraContentApi::Cluster::Metadata metadata;
-        metadata.m_particleId = pandora::PHOTON;
-        PANDORA_RETURN_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=,
-                                 PandoraContentApi::Cluster::AlterMetadata(*this, pPandoraCluster, metadata));
+        for (const auto& edmHit : calorimeterHitVec) {
+          auto itr = caloHitMap.find(edmHit.getCellID());
+          if (itr == caloHitMap.end())
+            continue;
+          pandoraHitList.emplace_back(itr->second);
+        }
+
+        if (pandoraHitList.empty())
+          continue;
+
+        object_creation::ClusterParameters clusterParameters;
+        clusterParameters.m_caloHitList = pandoraHitList;
+
+        const pandora::Cluster* pPandoraCluster = nullptr;
+
+        PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=,
+                                PandoraContentApi::Cluster::Create(*this, clusterParameters, pPandoraCluster));
+
+        if (m_flagClustersAsPhotons) {
+          PandoraContentApi::Cluster::Metadata metadata;
+          metadata.m_particleId = pandora::PHOTON;
+          PANDORA_RETURN_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=,
+                                   PandoraContentApi::Cluster::AlterMetadata(*this, pPandoraCluster, metadata));
+        }
       }
     }
 
@@ -131,6 +142,8 @@ pandora::StatusCode DDExternalClusteringAlgorithm::Run() {
                                PandoraContentApi::SaveList<pandora::Cluster>(*this, clusterListNameFinal));
       PANDORA_RETURN_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=,
                                PandoraContentApi::ReplaceCurrentList<pandora::Cluster>(*this, clusterListNameFinal));
+    } else {
+      return pandora::STATUS_CODE_SUCCESS;
     }
 
   } catch (pandora::StatusCodeException& statusCodeException) {
@@ -146,9 +159,13 @@ pandora::StatusCode DDExternalClusteringAlgorithm::Run() {
 //------------------------------------------------------------------------------------------------------------------------------------------
 
 pandora::StatusCode DDExternalClusteringAlgorithm::ReadSettings(const pandora::TiXmlHandle xmlHandle) {
-  PANDORA_RETURN_RESULT_IF(
-      pandora::STATUS_CODE_SUCCESS, !=,
-      pandora::XmlHelper::ReadValue(xmlHandle, "ExternalClusterCollectionName", m_externalClusterCollectionNames));
+  PANDORA_RETURN_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=,
+                           pandora::XmlHelper::ReadValue(xmlHandle, "ExternalECALClusterCollectionName",
+                                                         m_externalECALClusterCollectionName));
+
+  PANDORA_RETURN_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=,
+                           pandora::XmlHelper::ReadValue(xmlHandle, "ExternalHCALClusterCollectionName",
+                                                         m_externalHCALClusterCollectionName));
 
   PANDORA_RETURN_RESULT_IF_AND_IF(
       pandora::STATUS_CODE_SUCCESS, pandora::STATUS_CODE_NOT_FOUND, !=,
